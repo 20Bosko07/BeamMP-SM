@@ -165,6 +165,15 @@ function normalizeServer(input) {
   const authKey = (input.authKey || '').trim();
   const description = (input.description || '').trim();
   const tags = (input.tags || '').trim();
+  const allowGuests = typeof input.allowGuests === 'boolean' ? input.allowGuests : true;
+  const logChat = typeof input.logChat === 'boolean' ? input.logChat : true;
+  const debug = typeof input.debug === 'boolean' ? input.debug : false;
+  const ip = (input.ip || '::').trim();
+  const privateServer = typeof input.privateServer === 'boolean' ? input.privateServer : false;
+  const informationPacket = typeof input.informationPacket === 'boolean' ? input.informationPacket : true;
+  const maxCars = Number(input.maxCars) || 60;
+  const resourceFolder = (input.resourceFolder || 'Resources').trim();
+  const preserveConfigOnSave = Boolean(input.preserveConfigOnSave);
   const activeMods = Array.isArray(input.activeMods)
     ? input.activeMods.filter(Boolean).map((entry) => String(entry))
     : [];
@@ -180,8 +189,98 @@ function normalizeServer(input) {
     authKey,
     description,
     tags,
+    allowGuests,
+    logChat,
+    debug,
+    ip,
+    privateServer,
+    informationPacket,
+    maxCars,
+    resourceFolder,
+    preserveConfigOnSave,
     activeMods,
   };
+}
+
+function toBoolean(value, fallback) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return fallback;
+}
+
+function importServerFromConfig(configPath, options) {
+  if (!configPath || typeof configPath !== 'string') {
+    throw new Error('No config file was provided.');
+  }
+
+  const absoluteConfigPath = path.resolve(configPath);
+  if (!fs.existsSync(absoluteConfigPath)) {
+    throw new Error(`Config file not found: ${absoluteConfigPath}`);
+  }
+
+  const fileName = path.basename(absoluteConfigPath).toLowerCase();
+  if (fileName !== 'serverconfig.toml') {
+    throw new Error('Please select a BeamMP ServerConfig.toml file.');
+  }
+
+  let parsed;
+  try {
+    parsed = TOML.parse(fs.readFileSync(absoluteConfigPath, 'utf-8'));
+  } catch {
+    throw new Error('Could not parse ServerConfig.toml.');
+  }
+
+  const general = typeof parsed.General === 'object' && parsed.General !== null ? parsed.General : {};
+  const workingDirectory = path.dirname(absoluteConfigPath);
+  const explicitName = (options?.name || '').trim();
+  const baseId = (options?.id || explicitName || general.Name || path.basename(workingDirectory) || `srv-${Date.now()}`)
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || `srv-${Date.now()}`;
+
+  const all = readStore();
+  let id = baseId;
+  let suffix = 2;
+  while (all.some((entry) => entry.id === id)) {
+    id = `${baseId}-${suffix++}`;
+  }
+
+  const executablePath = (options?.executablePath || '').trim() || path.join(workingDirectory, 'BeamMP-Server.exe');
+  const normalized = normalizeServer({
+    id,
+    name: explicitName || general.Name || path.basename(workingDirectory),
+    workingDirectory,
+    executablePath,
+    port: Number(general.Port) || defaultPort,
+    maxPlayers: Number(general.MaxPlayers) || 8,
+    map: (general.Map || '').toString(),
+    authKey: (general.AuthKey || '').toString(),
+    description: (general.Description || '').toString(),
+    tags: (general.Tags || '').toString(),
+    allowGuests: toBoolean(general.AllowGuests, true),
+    logChat: toBoolean(general.LogChat, true),
+    debug: toBoolean(general.Debug, false),
+    ip: (general.IP || '::').toString(),
+    privateServer: toBoolean(general.Private, false),
+    informationPacket: toBoolean(general.InformationPacket, true),
+    maxCars: Number(general.MaxCars) || 60,
+    resourceFolder: (general.ResourceFolder || 'Resources').toString(),
+    preserveConfigOnSave: true,
+    activeMods: [],
+  });
+
+  all.push(normalized);
+  writeStore(all);
+  return normalized;
 }
 
 function ensureServer(serverId) {
@@ -308,6 +407,14 @@ function writeServerConfig(server) {
     MaxPlayers: Number(server.maxPlayers) || 8,
     Map: server.map,
     Tags: server.tags,
+    AllowGuests: Boolean(server.allowGuests),
+    LogChat: Boolean(server.logChat),
+    Debug: Boolean(server.debug),
+    IP: server.ip || '::',
+    Private: Boolean(server.privateServer),
+    InformationPacket: Boolean(server.informationPacket),
+    MaxCars: Number(server.maxCars) || 60,
+    ResourceFolder: server.resourceFolder || 'Resources',
   };
 
   fs.writeFileSync(configPath, TOML.stringify(next), 'utf-8');
@@ -319,6 +426,22 @@ function resolveExecutable(server) {
   }
 
   return path.join(server.workingDirectory, 'BeamMP-Server.exe');
+}
+
+function applyActiveModsToAllServers(sourceServerId) {
+  const source = ensureServer(sourceServerId);
+  const sourceMods = listModsForServer(source)
+    .filter((mod) => mod.enabled)
+    .map((mod) => mod.fileName);
+
+  const all = readStore().map((entry) => normalizeServer(entry));
+  all.forEach((server) => {
+    const updatedMods = setActiveMods(server.id, sourceMods);
+    server.activeMods = updatedMods.filter((mod) => mod.enabled).map((mod) => mod.fileName);
+  });
+
+  writeStore(all);
+  return all;
 }
 
 function getStatus(serverId) {
@@ -518,8 +641,18 @@ ipcMain.handle('servers:save', (_event, payload) => {
   }
   writeStore(all);
 
-  writeServerConfig(incoming);
+  if (!incoming.preserveConfigOnSave) {
+    writeServerConfig(incoming);
+  }
   return incoming;
+});
+
+ipcMain.handle('servers:importConfig', (_event, configPath, options) => {
+  return importServerFromConfig(configPath, options);
+});
+
+ipcMain.handle('servers:mods:applyToAll', (_event, sourceServerId) => {
+  return applyActiveModsToAllServers(sourceServerId);
 });
 
 ipcMain.handle('servers:delete', (_event, serverId) => {
@@ -574,6 +707,19 @@ ipcMain.handle('dialog:pickExecutable', async () => {
       { name: 'Executable', extensions: ['exe'] },
       { name: 'All files', extensions: ['*'] },
     ],
+  });
+
+  if (result.canceled || !result.filePaths.length) {
+    return null;
+  }
+
+  return result.filePaths[0];
+});
+
+ipcMain.handle('dialog:pickServerConfig', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'BeamMP ServerConfig', extensions: ['toml'] }],
   });
 
   if (result.canceled || !result.filePaths.length) {

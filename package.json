@@ -1,6 +1,6 @@
 {
   "name": "beammp-sm",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "BeamMP Multi-Server Manager for Windows",
   "main": "electron/main.cjs",
   "repository": {

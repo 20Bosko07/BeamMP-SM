@@ -9,6 +9,15 @@ export interface ServerProfile {
   authKey: string;
   description: string;
   tags: string;
+  allowGuests: boolean;
+  logChat: boolean;
+  debug: boolean;
+  ip: string;
+  privateServer: boolean;
+  informationPacket: boolean;
+  maxCars: number;
+  resourceFolder: string;
+  preserveConfigOnSave: boolean;
   activeMods: string[];
 }
 
@@ -49,9 +58,12 @@ export interface BeammpApi {
   getServerStatus(serverId: string): Promise<ServerStatus>;
   listMods(serverId: string): Promise<ModEntry[]>;
   setActiveMods(serverId: string, activeMods: string[]): Promise<ModEntry[]>;
+  applyModsToAllServers(sourceServerId: string): Promise<ServerProfile[]>;
   listMaps(serverId: string): Promise<string[]>;
+  importServerConfig(configPath: string, options?: Partial<ServerProfile>): Promise<ServerProfile>;
   pickDirectory(): Promise<string | null>;
   pickExecutable(): Promise<string | null>;
+  pickServerConfig(): Promise<string | null>;
   openPath(targetPath: string): Promise<string>;
   winMinimize(): Promise<void>;
   winMaximize(): Promise<boolean>;
@@ -116,13 +128,43 @@ const fallbackApi: BeammpApi = {
   async setActiveMods() {
     return [];
   },
+  async applyModsToAllServers() {
+    return [];
+  },
   async listMaps() {
     return [];
+  },
+  async importServerConfig(_configPath, options) {
+    return {
+      id: `srv-${Date.now()}`,
+      name: options?.name ?? 'Imported Server',
+      workingDirectory: '',
+      executablePath: '',
+      port: 30814,
+      maxPlayers: 8,
+      map: '/levels/west_coast_usa/info.json',
+      authKey: '',
+      description: '',
+      tags: '',
+      allowGuests: true,
+      logChat: true,
+      debug: false,
+      ip: '::',
+      privateServer: false,
+      informationPacket: true,
+      maxCars: 60,
+      resourceFolder: 'Resources',
+      preserveConfigOnSave: true,
+      activeMods: [],
+    };
   },
   async pickDirectory() {
     return null;
   },
   async pickExecutable() {
+    return null;
+  },
+  async pickServerConfig() {
     return null;
   },
   async openPath() {

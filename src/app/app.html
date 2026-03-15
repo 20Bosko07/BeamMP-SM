@@ -26,7 +26,10 @@
   <aside class="servers">
     <div class="servers__header">
       <h1>Server Fleet</h1>
-      <button type="button" (click)="createNewServer()">+ New Server</button>
+      <div class="servers__header-actions">
+        <button type="button" (click)="createNewServer()">+ New</button>
+        <button type="button" class="secondary" (click)="importServerFromConfig()" [disabled]="busy()">Import</button>
+      </div>
     </div>
 
     <ul class="server-list">
@@ -64,7 +67,7 @@
     <header class="workspace__header">
       <div>
         <h2>Server Profile</h2>
-        <p>BeamMP ENV and ServerConfig.toml are updated when you save.</p>
+        <p>Compact layout with optional advanced config. Import keeps existing config untouched by default.</p>
       </div>
       <div class="actions">
         <button type="button" (click)="saveServer()" [disabled]="busy()">Save</button>
@@ -77,43 +80,9 @@
 
     <p class="message" [class.message--error]="message().toLowerCase().includes('error')">{{ message() }}</p>
 
-    <article class="panel panel--updates">
-      <h3>Updates</h3>
-      <p>{{ updateStatusText() }}</p>
-      <div class="update-meta">
-        <span>Current: v{{ updateState().currentVersion }}</span>
-        <span>Latest: {{ updateState().latestVersion ? 'v' + updateState().latestVersion : '-' }}</span>
-      </div>
-      <div class="actions">
-        <button type="button" (click)="checkForUpdates()">Check</button>
-        <button
-          type="button"
-          (click)="downloadUpdate()"
-          [disabled]="updateState().status !== 'available'">
-          Download
-        </button>
-        <button
-          type="button"
-          (click)="installUpdateNow()"
-          [disabled]="updateState().status !== 'downloaded'">
-          Restart & Install
-        </button>
-      </div>
-      @if (updateState().releaseName || updateState().releaseNotes) {
-        <div class="release-log">
-          @if (updateState().releaseName) {
-            <h4>{{ updateState().releaseName }}</h4>
-          }
-          @if (updateState().releaseNotes) {
-            <pre>{{ updateState().releaseNotes }}</pre>
-          }
-        </div>
-      }
-    </article>
-
     <div class="grid">
       <article class="panel">
-        <h3>General</h3>
+        <h3>Core Settings</h3>
         <label>
           Server-ID
           <input [(ngModel)]="form.id" />
@@ -123,28 +92,26 @@
           <input [(ngModel)]="form.name" />
         </label>
         <label>
-          Description
-          <textarea rows="2" [(ngModel)]="form.description"></textarea>
-        </label>
-        <label>
-          Tags
-          <input [(ngModel)]="form.tags" placeholder="e.g. Freeroam, Drift" />
-        </label>
-        <label>
           AuthKey
           <input [(ngModel)]="form.authKey" placeholder="BeamMP Auth Key" />
         </label>
-      </article>
-
-      <article class="panel">
-        <h3>Network & Paths</h3>
+        <div class="row row--split">
+          <label>
+            Port
+            <input type="number" [(ngModel)]="form.port" />
+          </label>
+          <label>
+            Max Players
+            <input type="number" [(ngModel)]="form.maxPlayers" />
+          </label>
+        </div>
         <label>
-          Port
-          <input type="number" [(ngModel)]="form.port" />
-        </label>
-        <label>
-          Max Players
-          <input type="number" [(ngModel)]="form.maxPlayers" />
+          Map
+          <select [(ngModel)]="form.map">
+            @for (map of mapOptions(); track map) {
+              <option [value]="map">{{ map }}</option>
+            }
+          </select>
         </label>
         <label>
           Working Directory
@@ -163,26 +130,87 @@
       </article>
 
       <article class="panel">
-        <h3>Map Selection</h3>
+        <h3>Description</h3>
         <label>
-          Active Map (ServerConfig/ENV)
-          <select [(ngModel)]="form.map">
-            @for (map of mapOptions(); track map) {
-              <option [value]="map">{{ map }}</option>
-            }
-          </select>
+          Description
+          <textarea rows="3" [(ngModel)]="form.description"></textarea>
         </label>
         <label>
-          Custom Map Path
-          <input [(ngModel)]="form.map" placeholder="/levels/your_map/info.json" />
+          Tags
+          <input [(ngModel)]="form.tags" placeholder="e.g. Freeroam, Drift" />
         </label>
+        <label class="switch-row">
+          <input type="checkbox" [(ngModel)]="form.preserveConfigOnSave" />
+          Keep imported ServerConfig.toml untouched on Save
+        </label>
+
+        <button type="button" class="toggle-advanced" (click)="toggleAdvancedConfig()">
+          {{ showAdvancedConfig() ? 'Hide' : 'Show' }} Advanced BeamMP General fields
+        </button>
+
+        @if (showAdvancedConfig()) {
+          <div class="advanced-grid">
+            <label class="switch-row">
+              <input type="checkbox" [(ngModel)]="form.allowGuests" />
+              AllowGuests
+            </label>
+            <label class="switch-row">
+              <input type="checkbox" [(ngModel)]="form.logChat" />
+              LogChat
+            </label>
+            <label class="switch-row">
+              <input type="checkbox" [(ngModel)]="form.debug" />
+              Debug
+            </label>
+            <label class="switch-row">
+              <input type="checkbox" [(ngModel)]="form.privateServer" />
+              Private
+            </label>
+            <label class="switch-row">
+              <input type="checkbox" [(ngModel)]="form.informationPacket" />
+              InformationPacket
+            </label>
+            <label>
+              IP
+              <input [(ngModel)]="form.ip" placeholder="::" />
+            </label>
+            <label>
+              MaxCars
+              <input type="number" [(ngModel)]="form.maxCars" />
+            </label>
+            <label>
+              ResourceFolder
+              <input [(ngModel)]="form.resourceFolder" placeholder="Resources" />
+            </label>
+          </div>
+        }
       </article>
 
       <article class="panel panel--mods">
-        <h3>Mods (Resources/Client)</h3>
-        <p>Enabled/disabled state is toggled via .zip and .zip.disabled.</p>
+        <h3>Mod Manager</h3>
+        <div class="mods-toolbar">
+          <div class="mods-toolbar__left">
+            <input
+              [ngModel]="modQuery()"
+              (ngModelChange)="setModQuery($event)"
+              placeholder="Search mod name..." />
+            <label class="switch-row">
+              <input
+                type="checkbox"
+                [checked]="modsEnabledOnly()"
+                (change)="toggleModsEnabledOnly($any($event.target).checked)" />
+              Enabled only
+            </label>
+          </div>
+          <div class="mods-toolbar__right">
+            <span>{{ enabledModCount() }} / {{ mods().length }} enabled</span>
+            <button type="button" (click)="applyModsToAllServers()" [disabled]="busy() || !selectedServerId()">
+              Apply active mods to all servers
+            </button>
+          </div>
+        </div>
         <div class="mods">
-          @for (mod of mods(); track mod.fileName) {
+          @for (mod of filteredMods(); track mod.fileName) {
             <label class="mod-item">
               <input
                 type="checkbox"
@@ -191,9 +219,10 @@
               <span>{{ mod.label }}</span>
             </label>
           } @empty {
-            <p>No mods found. Put .zip files into Resources/Client.</p>
+            <p>No matching mods found.</p>
           }
         </div>
+        <p class="hint">Toggle state is managed via .zip and .zip.disabled inside Resources/Client.</p>
       </article>
 
       <article class="panel">
@@ -241,3 +270,40 @@
     </div>
   </section>
 </main>
+
+<button
+  type="button"
+  class="update-fab"
+  (click)="toggleUpdatePanel()"
+  [class.update-fab--warn]="updateState().status === 'available' || updateState().status === 'downloaded'">
+  Updates
+</button>
+
+@if (updatePanelOpen()) {
+  <section class="update-drawer">
+    <header>
+      <h3>Update Center</h3>
+      <button type="button" (click)="toggleUpdatePanel()">Close</button>
+    </header>
+    <p>{{ updateStatusText() }}</p>
+    <div class="update-meta">
+      <span>Current: v{{ updateState().currentVersion }}</span>
+      <span>Latest: {{ updateState().latestVersion ? 'v' + updateState().latestVersion : '-' }}</span>
+    </div>
+    <div class="actions">
+      <button type="button" (click)="checkForUpdates()">Check</button>
+      <button type="button" (click)="downloadUpdate()" [disabled]="updateState().status !== 'available'">Download</button>
+      <button type="button" (click)="installUpdateNow()" [disabled]="updateState().status !== 'downloaded'">Restart & Install</button>
+    </div>
+    @if (updateState().releaseName || updateState().releaseNotes) {
+      <div class="release-log">
+        @if (updateState().releaseName) {
+          <h4>{{ updateState().releaseName }}</h4>
+        }
+        @if (updateState().releaseNotes) {
+          <pre>{{ updateState().releaseNotes }}</pre>
+        }
+      </div>
+    }
+  </section>
+}

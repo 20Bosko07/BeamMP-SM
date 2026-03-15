@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BeammpApi, ModEntry, ServerProfile, ServerStatus, UpdateState, getBeammpApi } from './beammp-api';
 
 @Component({
   selector: 'app-root',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -18,6 +19,10 @@ export class App implements OnInit, OnDestroy {
   protected readonly message = signal<string>('');
   protected readonly busy = signal(false);
   protected readonly isMaximized = signal(false);
+  protected readonly updatePanelOpen = signal(false);
+  protected readonly modQuery = signal('');
+  protected readonly modsEnabledOnly = signal(false);
+  protected readonly showAdvancedConfig = signal(false);
   protected readonly updateState = signal<UpdateState>({
     status: 'idle',
     currentVersion: '0.0.0',
@@ -39,6 +44,23 @@ export class App implements OnInit, OnDestroy {
   });
 
   protected readonly hasServers = computed(() => this.servers().length > 0);
+  protected readonly filteredMods = computed(() => {
+    const query = this.modQuery().trim().toLowerCase();
+    const enabledOnly = this.modsEnabledOnly();
+
+    return this.mods().filter((mod) => {
+      if (enabledOnly && !mod.enabled) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return mod.label.toLowerCase().includes(query) || mod.fileName.toLowerCase().includes(query);
+    });
+  });
+  protected readonly enabledModCount = computed(() => this.mods().filter((mod) => mod.enabled).length);
 
   protected form = this.createDefaultServer();
   private readonly api: BeammpApi = getBeammpApi();
@@ -77,6 +99,7 @@ export class App implements OnInit, OnDestroy {
   }
 
   protected async checkForUpdates(): Promise<void> {
+    this.updatePanelOpen.set(true);
     this.updateState.set(await this.api.checkForUpdates());
   }
 
@@ -86,6 +109,10 @@ export class App implements OnInit, OnDestroy {
 
   protected async installUpdateNow(): Promise<void> {
     this.updateState.set(await this.api.quitAndInstallUpdate());
+  }
+
+  protected toggleUpdatePanel(): void {
+    this.updatePanelOpen.update((current) => !current);
   }
 
   protected updateStatusText(): string {
@@ -155,10 +182,43 @@ export class App implements OnInit, OnDestroy {
       authKey: '',
       description: 'Sample profile for a quick start',
       tags: 'Freeroam, Demo',
+      allowGuests: true,
+      logChat: true,
+      debug: false,
+      ip: '::',
+      privateServer: false,
+      informationPacket: true,
+      maxCars: 60,
+      resourceFolder: 'Resources',
+      preserveConfigOnSave: false,
       activeMods: [],
     };
     this.selectedServerId.set(null);
     this.message.set('Demo profile prepared. Set working directory and auth key, then save.');
+  }
+
+  protected async importServerFromConfig(): Promise<void> {
+    this.busy.set(true);
+    this.message.set('');
+    try {
+      const configPath = await this.api.pickServerConfig();
+      if (!configPath) {
+        this.message.set('Import canceled.');
+        return;
+      }
+
+      const imported = await this.api.importServerConfig(configPath, {});
+      await this.refreshServers();
+      this.selectedServerId.set(imported.id);
+      this.form = { ...imported, activeMods: [...imported.activeMods] };
+      await this.loadSelectionData(imported.id);
+      this.showAdvancedConfig.set(true);
+      this.message.set(`Imported server config: ${imported.name}. Config overwrite is disabled by default.`);
+    } catch (error) {
+      this.message.set(this.toErrorMessage(error));
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected selectServer(serverId: string): void {
@@ -227,6 +287,15 @@ export class App implements OnInit, OnDestroy {
         authKey: this.form.authKey.trim(),
         description: this.form.description.trim(),
         tags: this.form.tags.trim(),
+        allowGuests: this.form.allowGuests,
+        logChat: this.form.logChat,
+        debug: this.form.debug,
+        ip: this.form.ip.trim() || '::',
+        privateServer: this.form.privateServer,
+        informationPacket: this.form.informationPacket,
+        maxCars: Number(this.form.maxCars),
+        resourceFolder: this.form.resourceFolder.trim() || 'Resources',
+        preserveConfigOnSave: this.form.preserveConfigOnSave,
       };
 
       const saved = await this.api.saveServer(profileToSave);
@@ -239,6 +308,38 @@ export class App implements OnInit, OnDestroy {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  protected async applyModsToAllServers(): Promise<void> {
+    const selectedId = this.selectedServerId();
+    if (!selectedId) {
+      return;
+    }
+
+    this.busy.set(true);
+    this.message.set('');
+    try {
+      await this.api.applyModsToAllServers(selectedId);
+      await this.refreshServers();
+      await this.loadSelectionData(selectedId);
+      this.message.set('Active mod selection applied to all server profiles.');
+    } catch (error) {
+      this.message.set(this.toErrorMessage(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected setModQuery(value: string): void {
+    this.modQuery.set(value);
+  }
+
+  protected toggleModsEnabledOnly(checked: boolean): void {
+    this.modsEnabledOnly.set(checked);
+  }
+
+  protected toggleAdvancedConfig(): void {
+    this.showAdvancedConfig.update((current) => !current);
   }
 
   protected async deleteServer(): Promise<void> {
@@ -447,6 +548,15 @@ export class App implements OnInit, OnDestroy {
       authKey: '',
       description: '',
       tags: 'Freeroam',
+      allowGuests: true,
+      logChat: true,
+      debug: false,
+      ip: '::',
+      privateServer: false,
+      informationPacket: true,
+      maxCars: 60,
+      resourceFolder: 'Resources',
+      preserveConfigOnSave: false,
       activeMods: [],
     };
   }
