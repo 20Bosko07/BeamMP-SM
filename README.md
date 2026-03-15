@@ -56,18 +56,23 @@ Output file:
 
 The in-app updater uses GitHub Releases via `electron-updater`.
 
-1. Create a GitHub repository and push this project.
-2. Set environment variables before publishing:
-	- `GH_OWNER` (GitHub username or org)
-	- `GH_REPO` (repository name)
-	- `GH_TOKEN` (classic token with `repo` scope)
-3. Build and publish release artifacts:
+1. Push your commit to GitHub.
+2. Create and push a version tag (example):
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+3. GitHub Actions workflow `.github/workflows/release.yml` builds and publishes the installer automatically.
+
+You can also publish manually from local shell:
 
 ```bash
 npm run dist:publish
 ```
 
-The app can then detect updates in packaged mode from the release feed.
+The app then checks GitHub Releases in packaged mode and can download/install updates.
 
 ## Usage
 
