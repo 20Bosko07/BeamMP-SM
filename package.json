@@ -1,0 +1,84 @@
+{
+  "name": "beammp-sm",
+  "version": "0.1.0",
+  "description": "BeamMP Multi-Server Manager for Windows",
+  "main": "electron/main.cjs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/${env.GH_OWNER}/${env.GH_REPO}.git"
+  },
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "electron": "cross-env ELECTRON_START_URL=http://localhost:4200 electron .",
+    "electron:wait": "wait-on tcp:4200 && npm run electron",
+    "dev": "concurrently -k \"npm:start\" \"npm:electron:wait\"",
+    "build:web": "ng build --configuration production --base-href ./",
+    "build": "npm run build:web",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "dist": "npm run build:web && electron-builder --win nsis",
+    "dist:publish": "npm run build:web && electron-builder --win nsis --publish always"
+  },
+  "private": true,
+  "packageManager": "npm@10.9.0",
+  "build": {
+    "appId": "com.beammp.sm",
+    "productName": "BeamMP Server Manager",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/beammp-sm/browser/**/*",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "${env.GH_OWNER}",
+        "repo": "${env.GH_REPO}",
+        "releaseType": "release"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "target": "nsis",
+      "artifactName": "BeamMP-Server-Manager-${version}-Setup.${ext}"
+    }
+  },
+  "dependencies": {
+    "@angular/common": "^21.2.0",
+    "@angular/compiler": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "@angular/forms": "^21.2.0",
+    "@angular/platform-browser": "^21.2.0",
+    "@angular/router": "^21.2.0",
+    "@iarna/toml": "^2.2.5",
+    "electron-updater": "^6.6.2",
+    "pidusage": "^4.0.1",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "wait-on": "^9.0.4"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.2.2",
+    "@angular/cli": "^21.2.2",
+    "@angular/compiler-cli": "^21.2.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "jsdom": "^28.0.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

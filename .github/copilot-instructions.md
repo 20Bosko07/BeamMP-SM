@@ -1,0 +1,12 @@
+- [x] Verify that the copilot-instructions.md file in the .github directory is created. (Completed: file created at .github/copilot-instructions.md)
+- [x] Clarify Project Requirements (Completed: Windows desktop app with Angular + Electron, BeamMP multi-server management, mods/maps, monitoring, EXE installer)
+- [x] Scaffold the Project (Completed: Angular workspace scaffolded in current folder with routing/scss and dependencies installed.)
+- [x] Customize the Project (Completed: Electron main/preload, IPC APIs, multi-server profiles, mod/map management, monitoring dashboard implemented.)
+- [x] Install Required Extensions (Completed: No required extensions returned by project setup info.)
+- [x] Compile the Project (Completed: npm run build successful.)
+- [x] Create and Run Task (Completed: Existing Angular task configuration already present; no additional task required.)
+- [ ] Launch the Project (Pending: user debug/launch confirmation required before launch.)
+- [x] Ensure Documentation is Complete (Completed: README updated and this checklist cleaned of HTML comments.)
+- Work through each checklist item systematically.
+- Keep communication concise and focused.
+- Follow development best practices.

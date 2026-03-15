@@ -1,0 +1,243 @@
+<header class="titlebar">
+  <span class="titlebar__icon">BM</span>
+  <span class="titlebar__title">BeamMP Server Manager</span>
+  <span class="titlebar__count" [class.titlebar__count--active]="hasServers()">
+    {{ hasServers() ? servers().length + ' Servers' : 'No Servers' }}
+  </span>
+  <div class="titlebar__drag" [class.titlebar__drag--maximized]="isMaximized()"></div>
+  <div class="titlebar__controls">
+    <button type="button" class="wc wc--min" (click)="winMinimize()">
+      <svg width="12" height="2" viewBox="0 0 12 2"><rect y="0" width="12" height="2" rx="1" fill="currentColor"/></svg>
+    </button>
+    <button type="button" class="wc wc--max" (click)="winMaximize()">
+      @if (isMaximized()) {
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="3" y="0" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="0" y="3" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      } @else {
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      }
+    </button>
+    <button type="button" class="wc wc--close" (click)="winClose()">
+      <svg width="12" height="12" viewBox="0 0 12 12"><line x1="1.5" y1="1.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="10.5" y1="1.5" x2="1.5" y2="10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="servers">
+    <div class="servers__header">
+      <h1>Server Fleet</h1>
+      <button type="button" (click)="createNewServer()">+ New Server</button>
+    </div>
+
+    <ul class="server-list">
+      @for (server of servers(); track server.id) {
+        <li>
+          <button
+            type="button"
+            class="server-card"
+            [class.server-card--active]="selectedServerId() === server.id"
+            (click)="selectServer(server.id)">
+            <strong>{{ server.name }}</strong>
+            <span>Port {{ server.port }}</span>
+            <span>{{ statusLabel(statusByServerId()[server.id]) }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </aside>
+
+  <section class="workspace">
+    @if (!hasServers()) {
+      <section class="onboarding">
+        <h2>Server Management Ready</h2>
+        <p>
+          Create your first BeamMP profile with its own port, server directory, and mod set.
+          Then launch the server and monitor CPU/RAM in real time.
+        </p>
+        <div class="onboarding__actions">
+          <button type="button" (click)="createDemoServer()">Fill Demo Profile</button>
+          <button type="button" (click)="browseWorkingDirectory()">Select Server Folder</button>
+        </div>
+      </section>
+    }
+
+    <header class="workspace__header">
+      <div>
+        <h2>Server Profile</h2>
+        <p>BeamMP ENV and ServerConfig.toml are updated when you save.</p>
+      </div>
+      <div class="actions">
+        <button type="button" (click)="saveServer()" [disabled]="busy()">Save</button>
+        <button type="button" (click)="startSelectedServer()" [disabled]="busy()">Start</button>
+        <button type="button" (click)="stopSelectedServer()" [disabled]="busy()">Stop</button>
+        <button type="button" (click)="openWorkingDirectory()">Open Folder</button>
+        <button type="button" class="danger" (click)="deleteServer()" [disabled]="!selectedServerId() || busy()">Delete</button>
+      </div>
+    </header>
+
+    <p class="message" [class.message--error]="message().toLowerCase().includes('error')">{{ message() }}</p>
+
+    <article class="panel panel--updates">
+      <h3>Updates</h3>
+      <p>{{ updateStatusText() }}</p>
+      <div class="update-meta">
+        <span>Current: v{{ updateState().currentVersion }}</span>
+        <span>Latest: {{ updateState().latestVersion ? 'v' + updateState().latestVersion : '-' }}</span>
+      </div>
+      <div class="actions">
+        <button type="button" (click)="checkForUpdates()">Check</button>
+        <button
+          type="button"
+          (click)="downloadUpdate()"
+          [disabled]="updateState().status !== 'available'">
+          Download
+        </button>
+        <button
+          type="button"
+          (click)="installUpdateNow()"
+          [disabled]="updateState().status !== 'downloaded'">
+          Restart & Install
+        </button>
+      </div>
+      @if (updateState().releaseName || updateState().releaseNotes) {
+        <div class="release-log">
+          @if (updateState().releaseName) {
+            <h4>{{ updateState().releaseName }}</h4>
+          }
+          @if (updateState().releaseNotes) {
+            <pre>{{ updateState().releaseNotes }}</pre>
+          }
+        </div>
+      }
+    </article>
+
+    <div class="grid">
+      <article class="panel">
+        <h3>General</h3>
+        <label>
+          Server-ID
+          <input [(ngModel)]="form.id" />
+        </label>
+        <label>
+          Name
+          <input [(ngModel)]="form.name" />
+        </label>
+        <label>
+          Description
+          <textarea rows="2" [(ngModel)]="form.description"></textarea>
+        </label>
+        <label>
+          Tags
+          <input [(ngModel)]="form.tags" placeholder="e.g. Freeroam, Drift" />
+        </label>
+        <label>
+          AuthKey
+          <input [(ngModel)]="form.authKey" placeholder="BeamMP Auth Key" />
+        </label>
+      </article>
+
+      <article class="panel">
+        <h3>Network & Paths</h3>
+        <label>
+          Port
+          <input type="number" [(ngModel)]="form.port" />
+        </label>
+        <label>
+          Max Players
+          <input type="number" [(ngModel)]="form.maxPlayers" />
+        </label>
+        <label>
+          Working Directory
+          <div class="row">
+            <input [(ngModel)]="form.workingDirectory" placeholder="C:/BeamMP/Server-1" />
+            <button type="button" (click)="browseWorkingDirectory()">Browse</button>
+          </div>
+        </label>
+        <label>
+          BeamMP-Server.exe
+          <div class="row">
+            <input [(ngModel)]="form.executablePath" placeholder="Optional, otherwise auto-detected in working directory" />
+            <button type="button" (click)="browseExecutable()">Select EXE</button>
+          </div>
+        </label>
+      </article>
+
+      <article class="panel">
+        <h3>Map Selection</h3>
+        <label>
+          Active Map (ServerConfig/ENV)
+          <select [(ngModel)]="form.map">
+            @for (map of mapOptions(); track map) {
+              <option [value]="map">{{ map }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Custom Map Path
+          <input [(ngModel)]="form.map" placeholder="/levels/your_map/info.json" />
+        </label>
+      </article>
+
+      <article class="panel panel--mods">
+        <h3>Mods (Resources/Client)</h3>
+        <p>Enabled/disabled state is toggled via .zip and .zip.disabled.</p>
+        <div class="mods">
+          @for (mod of mods(); track mod.fileName) {
+            <label class="mod-item">
+              <input
+                type="checkbox"
+                [checked]="mod.enabled"
+                (change)="toggleMod(mod.fileName, $any($event.target).checked)" />
+              <span>{{ mod.label }}</span>
+            </label>
+          } @empty {
+            <p>No mods found. Put .zip files into Resources/Client.</p>
+          }
+        </div>
+      </article>
+
+      <article class="panel">
+        <h3>Monitoring</h3>
+        @if (selectedStatus(); as status) {
+          <div class="stats" [class.stats--warn]="statusTone(status) === 'warn'" [class.stats--idle]="statusTone(status) === 'idle'">
+            <div class="stat-tile">
+              <span>Status</span>
+              <strong>{{ status.running ? 'Running' : 'Stopped' }}</strong>
+            </div>
+            <div class="stat-tile">
+              <span>PID</span>
+              <strong>{{ status.pid ?? '-' }}</strong>
+            </div>
+            <div class="stat-tile stat-tile--meter">
+              <span>CPU</span>
+              <strong>{{ status.cpuPercent }}%</strong>
+              <div class="meter">
+                <div class="meter__fill" [style.width.%]="toPercent(status.cpuPercent, 100)"></div>
+              </div>
+            </div>
+            <div class="stat-tile stat-tile--meter">
+              <span>RAM</span>
+              <strong>{{ status.memoryMb }} MB</strong>
+              <div class="meter">
+                <div class="meter__fill" [style.width.%]="toPercent(status.memoryMb, 4096)"></div>
+              </div>
+            </div>
+            <div class="stat-tile">
+              <span>Uptime</span>
+              <strong>{{ formatUptime(status.uptimeSec) }}</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Exit Code</span>
+              <strong>{{ status.lastExitCode ?? '-' }}</strong>
+            </div>
+          </div>
+
+          <h4>Latest Log Lines</h4>
+          <pre class="logs">{{ status.logs.join('\n') }}</pre>
+        } @else {
+          <p>Please select a server profile.</p>
+        }
+      </article>
+    </div>
+  </section>
+</main>
