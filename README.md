@@ -1,67 +1,79 @@
 # BeamMP Server Manager
 
-Desktop-Verwaltungssoftware fuer BeamMP-Server mit Angular + Electron.
+Desktop BeamMP multi-server manager built with Angular + Electron.
 
 ## Features
 
-- Mehrere Serverprofile mit eigenen Ports, Arbeitsverzeichnissen und Exe-Pfaden
-- Bearbeiten von BeamMP-Einstellungen (Name, AuthKey, Map, MaxPlayers, Tags)
-- Automatisches Schreiben von `ServerConfig.toml` und ENV-Overrides (`BEAMMP_*`)
-- Mod-Management ueber `Resources/Client` (`.zip` aktiv, `.zip.disabled` inaktiv)
-- Map-Auswahl (Standard-Maps + erkannte Maps aus Modnamen)
-- Prozesssteuerung (Start/Stop) und Monitoring (Status, PID, CPU, RAM, Uptime, Logs)
-- Windows-Installer als `.exe` via NSIS (`electron-builder`)
+- Multiple server profiles with custom ports, working directories, and executable paths
+- BeamMP config management (Name, AuthKey, Map, MaxPlayers, Tags)
+- Automatic `ServerConfig.toml` writing plus `BEAMMP_*` environment overrides
+- Mod activation management in `Resources/Client` (`.zip` enabled, `.zip.disabled` disabled)
+- Map selection (default map list + inferred map paths)
+- Process control and monitoring (status, PID, CPU, RAM, uptime, logs)
+- Built-in updater center (check, download, install updates)
+- Windows installer (`.exe`) through NSIS (`electron-builder`)
 
-## Offizielle Referenzen
+## Official References
 
 - BeamMP Server Manual: https://docs.beammp.com/server/manual/
 - BeamMP Server Setup: https://docs.beammp.com/server/create-a-server/
-- Angular Dokumentation: https://angular.dev/docs
+- Angular Docs: https://angular.dev/docs
 
-## Voraussetzungen
+## Requirements
 
 - Windows 10/11
 - Node.js 20+
-- BeamMP-Server-Binary (`BeamMP-Server.exe`) pro Serverprofil
+- BeamMP server binary (`BeamMP-Server.exe`) for each profile
 
-## Entwicklung
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run dev` startet Angular Dev-Server und Electron zusammen.
+`npm run dev` starts Angular and Electron together.
 
-## Produktion Build
+## Build
 
 ```bash
 npm run build
 ```
 
-Frontend-Artefakte landen in `dist/beammp-sm/browser`.
+Frontend output: `dist/beammp-sm/browser`
 
-## Installer erstellen
+## Build Installer
 
 ```bash
 npm run dist
 ```
 
-Installer-Ausgabe:
+Output file:
 
 - `release/BeamMP-Server-Manager-0.1.0-Setup.exe`
 
-## Nutzung
+## Updater + GitHub Releases Setup
 
-1. Neues Serverprofil erstellen.
-2. Working Directory waehlen (enthaelt BeamMP Serverdaten).
-3. Optional eigene `BeamMP-Server.exe` waehlen.
-4. AuthKey/Port/Map/MaxPlayers setzen und speichern.
-5. Mods in `Resources/Client` ablegen und aktivieren/deaktivieren.
-6. Server starten und Monitoring live beobachten.
+The in-app updater uses GitHub Releases via `electron-updater`.
 
-## Hinweise
+1. Create a GitHub repository and push this project.
+2. Set environment variables before publishing:
+	- `GH_OWNER` (GitHub username or org)
+	- `GH_REPO` (repository name)
+	- `GH_TOKEN` (classic token with `repo` scope)
+3. Build and publish release artifacts:
 
-- Die Working Directory bestimmt laut BeamMP-Doku, wo `ServerConfig.toml`, Logs und `Resources` erstellt/geladen werden.
-- Ports muessen pro Serverprofil eindeutig sein.
-- Beim ersten Lauf kann der BeamMP-Server seine Ordnerstruktur selbst erzeugen.
+```bash
+npm run dist:publish
+```
+
+The app can then detect updates in packaged mode from the release feed.
+
+## Usage
+
+1. Create a server profile.
+2. Select a working directory.
+3. Optionally select a custom `BeamMP-Server.exe`.
+4. Set AuthKey, port, map, max players, and save.
+5. Put mods into `Resources/Client` and toggle active mods.
+6. Start server and monitor runtime stats.
