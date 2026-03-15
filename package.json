@@ -3,10 +3,6 @@
   "version": "0.1.0",
   "description": "BeamMP Multi-Server Manager for Windows",
   "main": "electron/main.cjs",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/${env.GH_OWNER}/${env.GH_REPO}.git"
-  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -18,7 +14,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "dist": "npm run build:web && electron-builder --win nsis",
-    "dist:publish": "npm run build:web && electron-builder --win nsis --publish always"
+    "dist:publish": "npm run build:web && cross-env-shell \"electron-builder --win nsis --publish always -c.publish.provider=github -c.publish.owner=$GH_OWNER -c.publish.repo=$GH_REPO -c.publish.releaseType=release\""
   },
   "private": true,
   "packageManager": "npm@10.9.0",
@@ -32,14 +28,6 @@
       "electron/**/*",
       "dist/beammp-sm/browser/**/*",
       "package.json"
-    ],
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "${env.GH_OWNER}",
-        "repo": "${env.GH_REPO}",
-        "releaseType": "release"
-      }
     ],
     "nsis": {
       "oneClick": false,
