@@ -30,7 +30,7 @@ export interface ServerStatus {
 }
 
 export interface UpdateState {
-  status: 'idle' | 'checking' | 'available' | 'up-to-date' | 'downloading' | 'downloaded' | 'error' | 'dev-mode';
+  status: 'idle' | 'checking' | 'available' | 'up-to-date' | 'downloading' | 'downloaded' | 'error' | 'dev-mode' | 'no-releases';
   currentVersion: string;
   latestVersion: string | null;
   releaseName: string | null;

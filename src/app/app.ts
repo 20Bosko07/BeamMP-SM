@@ -101,6 +101,8 @@ export class App implements OnInit, OnDestroy {
         return 'Update downloaded. Restart app to install.';
       case 'up-to-date':
         return 'You are on the latest version.';
+      case 'no-releases':
+        return 'No release is published on GitHub yet.';
       case 'dev-mode':
         return 'Updater is disabled in dev mode.';
       case 'error':

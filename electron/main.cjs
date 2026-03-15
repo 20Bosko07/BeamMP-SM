@@ -108,9 +108,21 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('error', (error) => {
+    const message = error?.message || 'Updater error';
+    if (message.includes('No published versions on GitHub')) {
+      setUpdateState({
+        status: 'no-releases',
+        latestVersion: null,
+        downloaded: false,
+        percent: 0,
+        error: null,
+      });
+      return;
+    }
+
     setUpdateState({
       status: 'error',
-      error: error?.message || 'Updater error',
+      error: message,
     });
   });
 }
